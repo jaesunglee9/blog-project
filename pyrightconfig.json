@@ -1,8 +1,13 @@
 {
+  "venvPath": "backend",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "exclude": ["**/migrations/**", "**/.venv/**"],
   "executionEnvironments": [
     {
       "root": "backend",
-      "extraPaths": ["backend"]
+      "extraPaths": ["."]
     }
-  ]
+  ],
+  "extraPaths": ["backend"]
 }
