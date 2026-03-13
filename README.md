@@ -1,49 +1,86 @@
-# blog-project
-our first toy project - blog
+# Tlog Team Blog App
 
-## We are now migrating to docker containers
-### Please follow the instruction below.
+A modern, production-ready full-stack blog application.
+
+## 🚀 Tech Stack
+
+### Backend
+- **Framework:** Django 5.2 / Django REST Framework
+- **Database:** MySQL 8.0
+- **Architecture:** Service/Selector pattern ("Fat Models, Thin Views")
+- **Code Quality:** Ruff, Black
+
+### Frontend
+- **Framework:** React 18 / Vite / TypeScript
+- **State Management:** TanStack React Query (Server State), Zustand (Client State)
+- **Styling:** Tailwind CSS / Radix UI / shadcn/ui
+- **Testing:** Vitest, ESLint
+
+### DevOps
+- **Containerization:** Docker & Docker Compose
+- **Web Server:** Nginx & Gunicorn
+- **CI/CD:** GitHub Actions (Linting, Testing, Docker Build & Push)
+
+---
+
+## 🛠️ Local Development (Hot-Reloading)
+
+To run the application locally for development with full hot-reloading for both the backend and frontend:
+
 ```bash
-docker compose up -d
-docker ps # Check for health
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py createsuperuser
+# Start the development containers
+docker compose -f docker-compose.dev.yml up -d
 
-# check logs
-docker logs -f blog_be
-docker logs -f blog_db
+# Check the logs to ensure everything is running smoothly
+docker compose -f docker-compose.dev.yml logs -f
+
+# Run database migrations
+docker compose -f docker-compose.dev.yml exec backend python manage.py migrate
+
+# Create a superuser for the Django admin panel
+docker compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser
 ```
 
-### After that, access site by:
-[http://localhost:8000/admin/](http://localhost:8000/admin/)
+**Accessing the application:**
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000/api/`
+- Django Admin: `http://localhost:8000/admin/`
 
-## Env setup
-### For guix users:
+---
 
-#### Guix users need to run guix environment with guix shell before setting up python env:
+## 🌍 Production Deployment
+
+To run the application in a production-like environment using Gunicorn and Nginx:
+
 ```bash
-guix shell -m manifest.scm
-# Set library directory for mysqlclient compilation
-# GUIX_ENVIRONMENT flag is set when you enter guix shell.
-# This part is required because mysqlclient tries to load some libraries required for compilation
-export LDFLAGS="-L$GUIX_ENVIRONMENT/lib" 
+# Start the production containers
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Run database migrations
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+
+# Collect static files (if necessary)
+docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 ```
 
-### First time setup
+**Accessing the application:**
+- The application will be served directly on port `80` by Nginx.
+- API requests under `/api/` and static requests under `/static/` are automatically reverse-proxied to the Gunicorn backend.
 
-#### Linux/MacOS 
+---
+
+## 🧪 Testing
+
+The project uses GitHub actions for CI/CD which automatically lints and tests code on pushes to `main` and `develop`.
+
+To run tests locally:
+
+**Backend:**
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
+docker compose -f docker-compose.dev.yml exec backend python manage.py test
 ```
 
-#### PowerShell
-```powershell
-python3 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+**Frontend:**
+```bash
+docker compose -f docker-compose.dev.yml exec frontend npm run test
 ```
-
-### Always enable venv
-

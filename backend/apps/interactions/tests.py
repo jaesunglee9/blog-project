@@ -12,35 +12,34 @@ User = get_user_model()
 class InteractionTests(APITestCase):
     def setUp(self):
         # 1. Create two users
-        self.user_a = User.objects.create_user(username='user_a', password='password123')
-        self.user_b = User.objects.create_user(username='user_b', password='password123')
+        self.user_a = User.objects.create_user(username='user_a', password='password123')  # type: ignore[attr-defined]
+        self.user_b = User.objects.create_user(username='user_b', password='password123')  # type: ignore[attr-defined]
 
         # 2. Create a post (User A's post)
         self.post = Post.objects.create(user=self.user_a, title="Test Post", content="Content")
 
-        # 3. URLs (We use 'reverse' so we don't hardcode paths like /api/...)
-        self.comment_url = reverse('comment-list') # Assuming router name is 'comment'
-        self.like_url = reverse('likes-toggle')    # Action name from ViewSet
+        # 3. URLs
+        self.comment_url = reverse('post-comments', args=[self.post.id])  # type: ignore[attr-defined]
+        self.like_url = reverse('post-likes', args=[self.post.id])  # type: ignore[attr-defined]
 
     def test_toggle_like(self):
-        """Test that hitting the endpoint twice toggles the like"""
+        """Test liking and unliking using new explicit endpoints"""
         self.client.force_authenticate(user=self.user_a)
-        data = {'post_id': self.post.id}
 
         # First hit: LIKE
-        response = self.client.post(self.like_url, data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response = self.client.post(self.like_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Like.objects.count(), 1)
 
         # Second hit: UNLIKE
-        response = self.client.post(self.like_url, data)
+        response = self.client.delete(self.like_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Like.objects.count(), 0)
 
     def test_create_comment(self):
         """Test creating a comment"""
         self.client.force_authenticate(user=self.user_b)
-        data = {'post': self.post.id, 'content': 'Nice post!'}
+        data = {'content': 'Nice post!'}
         
         response = self.client.post(self.comment_url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -56,7 +55,7 @@ class InteractionTests(APITestCase):
         self.client.force_authenticate(user=self.user_a)
         
         # 3. Try to PATCH User B's comment
-        url = reverse('comment-detail', args=[comment.id])
+        url = reverse('comment-detail', args=[comment.id])  # type: ignore[attr-defined]
         response = self.client.patch(url, {'content': 'Hacked!'}, format='json')
 
         # 4. Expect Forbidden (403)

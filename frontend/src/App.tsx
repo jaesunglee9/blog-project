@@ -7,6 +7,7 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
 import { MainPage } from './components/MainPage';
@@ -19,6 +20,8 @@ import {
   getPostDetailApi,
   Post as PostType,
 } from './api/auth';
+import { useAuthStore } from './store/useAuthStore';
+import api from './api/config';
 
 function normalizePost(post: any): PostType {
   return {
@@ -35,45 +38,35 @@ function normalizePost(post: any): PostType {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const [posts, setPosts] = useState<PostType[]>([]);
+  const { isLoggedIn, isAuthChecked, login, logout, setAuthChecked, setLoggedIn } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('/api/user/me/', { method: 'GET', credentials: 'include' })
-      .then(async (res) => {
-        const data = await res.json();
-        if (res.ok && data.authenticated) {
-          setIsLoggedIn(true);
+    api.get('/user/me/')
+      .then((data: any) => {
+        if (data && data.authenticated) {
+          setLoggedIn(true);
         } else {
-          setIsLoggedIn(false);
+          setLoggedIn(false);
         }
-        setIsAuthChecked(true);
+        setAuthChecked(true);
       })
       .catch(() => {
-        setIsLoggedIn(false);
-        setIsAuthChecked(true);
+        setLoggedIn(false);
+        setAuthChecked(true);
       });
-  }, []);
+  }, [setLoggedIn, setAuthChecked]);
 
-  const fetchPosts = useCallback(async () => {
-    if (!isLoggedIn) return;
-    try {
-      const data = await getPostsApi();
-      const processedPosts = data.map((post: any) => normalizePost(post));
-      setPosts(processedPosts);
-    } catch (error) {
-      console.error('Failed to fetch posts:', error);
-    }
-  }, [isLoggedIn]);
+  const { data: rawPosts = [], refetch: refetchPosts } = useQuery({
+    queryKey: ['posts'],
+    queryFn: getPostsApi,
+    enabled: isLoggedIn,
+  });
 
-  useEffect(() => {
-    if (isLoggedIn) fetchPosts();
-  }, [isLoggedIn, fetchPosts]);
+  const posts = rawPosts.map(normalizePost);
 
   const handleLogin = () => {
-    setIsLoggedIn(true);
+    login();
     navigate('/');
   };
 
@@ -83,8 +76,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     } finally {
-      setIsLoggedIn(false);
-      setPosts([]);
+      logout();
       navigate('/login');
     }
   };
@@ -107,37 +99,24 @@ export default function App() {
 
   const PostDetailRoute = () => {
     const { postId } = useParams();
-    const [post, setPost] = useState<PostType | null>(null);
-    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-      if (!postId) return;
-      setError(null);
-      getPostDetailApi(postId)
-        .then((data) => setPost(normalizePost(data)))
-        .catch((err) => {
-          console.error(err);
-          setError('Post not found');
-        });
-    }, [postId]);
+    const { data: rawPost, error, isLoading } = useQuery({
+      queryKey: ['post', postId],
+      queryFn: () => getPostDetailApi(postId as string),
+      enabled: !!postId,
+    });
 
-    if (!postId) {
-      return <div className="text-center py-20 text-gray-500">Invalid post</div>;
-    }
-    if (error) {
-      return <div className="text-center py-20 text-gray-500">{error}</div>;
-    }
-    if (!post) {
-      return <div className="text-center py-20 text-gray-500">Loading...</div>;
-    }
+    if (!postId) return <div className="text-center py-20 text-gray-500">Invalid post</div>;
+    if (error) return <div className="text-center py-20 text-gray-500">Post not found</div>;
+    if (isLoading || !rawPost) return <div className="text-center py-20 text-gray-500">Loading...</div>;
 
-    return <PostDetailPage post={post} onRefresh={fetchPosts} />;
+    return <PostDetailPage post={normalizePost(rawPost)} onRefresh={refetchPosts} />;
   };
 
   const NewPostRoute = () => (
     <NewPostPage
       onSuccess={(newId) => {
-        fetchPosts();
+        refetchPosts();
         navigate(newId ? `/posts/${newId}` : '/');
       }}
       onCancel={() => navigate('/')}
@@ -146,35 +125,24 @@ export default function App() {
 
   const EditPostRoute = () => {
     const { postId } = useParams();
-    const [post, setPost] = useState<PostType | null>(null);
-    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-      if (!postId) return;
-      setError(null);
-      getPostDetailApi(postId)
-        .then((data) => setPost(normalizePost(data)))
-        .catch((err) => {
-          console.error(err);
-          setError('Post not found');
-        });
-    }, [postId]);
+    const { data: rawPost, error, isLoading } = useQuery({
+      queryKey: ['post', postId],
+      queryFn: () => getPostDetailApi(postId as string),
+      enabled: !!postId,
+    });
 
-    if (!postId) {
-      return <div className="text-center py-20 text-gray-500">Invalid post</div>;
-    }
-    if (error) {
-      return <div className="text-center py-20 text-gray-500">{error}</div>;
-    }
-    if (!post) {
-      return <div className="text-center py-20 text-gray-500">Loading...</div>;
-    }
+    if (!postId) return <div className="text-center py-20 text-gray-500">Invalid post</div>;
+    if (error) return <div className="text-center py-20 text-gray-500">Post not found</div>;
+    if (isLoading || !rawPost) return <div className="text-center py-20 text-gray-500">Loading...</div>;
+
+    const post = normalizePost(rawPost);
 
     return (
       <NewPostPage
         editPost={post}
         onSuccess={(newId) => {
-          fetchPosts();
+          refetchPosts();
           navigate(newId ? `/posts/${newId}` : `/posts/${post.id}`);
         }}
         onCancel={() => navigate(`/posts/${post.id}`)}

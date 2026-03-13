@@ -24,6 +24,10 @@ from apps.interactions.models import Comment, Like
 from apps.interactions.serializers import CommentSerializer, LikeSerializer
 from apps.interactions.pagination import CommentPagination
 
+from .selectors import get_post_queryset
+from apps.interactions.selectors import get_post_comments
+from apps.interactions.services import add_like, remove_like
+
 class IsOwnerOrReadOnly(BasePermission):
     """
     GET/HEAD/OPTIONS: 허용 (피드/상세 조회)
@@ -73,33 +77,7 @@ class PostViewSet(ModelViewSet):
         return PostListSerializer
 
     def get_queryset(self):
-        qs = Post.objects.all().order_by("-created_at")
-        # Count likes 
-        qs = qs.annotate(like_count=Count("like", distinct=True))  # requires related_name="likes"
-
-        # Count comments
-        qs = qs.annotate(comment_count=Count("comment", distinct=True))
-
-        user = self.request.user
-        if user.is_authenticated:
-            qs = qs.annotate(
-                liked_by_me=Exists(
-                    Like.objects.filter(user=user, post_id=OuterRef('pk'))
-                ),
-                is_mine = Case(
-                    When(user=user, then=Value(True)),
-                    default=Value(False),
-                    output_field=BooleanField(),
-                ),
-            )
-        else:
-            qs = qs.annotate(
-                liked_by_me=Value(False, output_field=BooleanField()),
-                is_mine=Value(False, output_field=BooleanField()),
-            )
-
-
-        return qs
+        return get_post_queryset(self.request.user)
 
     # IsAuthenticated : 권한 인증된 모든 사용자 접근 하용/ 인증x면 접근 거부 
     
@@ -159,7 +137,7 @@ class PostViewSet(ModelViewSet):
         post = self.get_object()
 
         if request.method == "GET":
-            qs = Comment.objects.filter(post=post).select_related("user").order_by("-created_at")
+            qs = get_post_comments(post)
             paginator = CommentPagination()
             page = paginator.paginate_queryset(qs, request, view=self)
             ser = CommentSerializer(page, many=True)
@@ -177,17 +155,8 @@ class PostViewSet(ModelViewSet):
         post = self.get_object()
 
         if request.method == "POST":
-            Like.objects.get_or_create(user=request.user, post=post)
+            data = add_like(request.user, post)
         else:
-            Like.objects.filter(user=request.user, post=post).delete()
-
-        like_count = Like.objects.filter(post=post).count()
-        liked_by_me = Like.objects.filter(user=request.user, post=post).exists()
+            data = remove_like(request.user, post)
         
-        return Response(
-            {
-                "post_id": post.id,
-                "like_count": like_count,
-                "liked_by_me": liked_by_me
-            }, status=status.HTTP_200_OK,
-        )
+        return Response(data, status=status.HTTP_200_OK)

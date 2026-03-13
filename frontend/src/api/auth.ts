@@ -1,4 +1,6 @@
 // src/api/auth.ts
+import api from './config';
+
 export type ApiResponse = { detail?: string };
 
 export type LikeResponse = {
@@ -7,48 +9,14 @@ export type LikeResponse = {
   liked_by_me: boolean;
 };
 
-async function safeJson(res: Response) {
-  try {
-    if (res.status === 204) return {};
-    return await res.json();
-  } catch {
-    return {};
-  }
+export async function loginApi(username: string, password: string): Promise<ApiResponse> {
+  return await api.post('/user/login/', { username, password });
 }
 
-function getCookie(name: string) {
-    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-    return match ? decodeURIComponent(match[2]) : null;
+export async function logoutApi(): Promise<ApiResponse> {
+  return await api.post('/user/logout/');
 }
 
-export async function loginApi(username: string, password: string) {
-  const res = await fetch(`/api/user/login/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken") || "",
-     },
-    credentials: "include",
-    body: JSON.stringify({ username, password }),
-  });
-  const data: ApiResponse = await safeJson(res);
-  if (!res.ok) throw new Error(data.detail || "로그인 실패");
-  return data;
-}
-
-export async function logoutApi() {
-  const res = await fetch(`/api/user/logout/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken") || "",
-     },
-    credentials: "include",
-  });
-  const data: ApiResponse = await safeJson(res);
-  if (!res.ok) throw new Error(data.detail || "로그아웃 실패");
-  return data;
-}
-
-// ✅ Added isUserPost to fix the TypeScript error
 export type Post = {
     id: number;
     title: string;
@@ -61,82 +29,46 @@ export type Post = {
     likes?: number;
     likedByUser?: boolean;
     is_mine?: boolean;
-    isUserPost?: boolean; // Added this property
+    isUserPost?: boolean; 
     comments: any[];       
 };
   
-export type PostsListResponse = Post[]; 
+export type PostsListResponse = {
+    count?: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Post[];
+};
 
 export type CreatePostBody = { title?: string; content: string; };
 export type UpdatePostBody = { title?: string; content?: string; };
 
-export async function getPostsApi() {
-    const res = await fetch(`/api/posts/`, {
-        method: "GET",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data = (await safeJson(res)) as any;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "글 조회 실패");
+export async function getPostsApi(): Promise<Post[]> {
+    const data = await api.get<any, PostsListResponse | Post[]>('/posts/');
+    // Handle both paginated and non-paginated responses
     return Array.isArray(data) ? data : data.results;
 }
 
-export async function getPostDetailApi(id: number | string) {
-    const res = await fetch(`/api/posts/${id}/`, {
-        method: "GET",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data = (await safeJson(res)) as Post & ApiResponse;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "글 상세 조회 실패");
-    return data as Post;
+export async function getPostDetailApi(id: number | string): Promise<Post> {
+    return await api.get(`/posts/${id}/`);
 }
 
-export async function getMyPostsApi() {
-    const res = await fetch(`/api/posts/me/`, {
-        method: "GET",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data = (await safeJson(res)) as any;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "내 글 조회 실패");
-    // Ensure we return an array
+export async function getMyPostsApi(): Promise<Post[]> {
+    const data = await api.get('/posts/me/');
     return Array.isArray(data) ? data : []; 
 }
 
-export async function createPostApi(body: CreatePostBody) {
-    const res = await fetch(`/api/posts/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-        body: JSON.stringify(body),
-    });
-    const data = (await safeJson(res)) as Post & ApiResponse;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "글 업로드 실패");
-    return data as Post;
+export async function createPostApi(body: CreatePostBody): Promise<Post> {
+    return await api.post('/posts/', body);
 }
 
-export async function updatePostApi(id: number | string, body: UpdatePostBody) {
-    const res = await fetch(`/api/posts/${id}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-        body: JSON.stringify(body),
-    });
-    const data = (await safeJson(res)) as Post & ApiResponse;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "글 수정 실패");
-    return data as Post;
+export async function updatePostApi(id: number | string, body: UpdatePostBody): Promise<Post> {
+    return await api.patch(`/posts/${id}/`, body);
 }
 
-export async function deletePostApi(id: number | string) {
-    const res = await fetch(`/api/posts/${id}/`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data: ApiResponse = await safeJson(res);
-    if (!res.ok) throw new Error(data.detail || "글 삭제 실패");
-    return data; 
+export async function deletePostApi(id: number | string): Promise<ApiResponse> {
+    // Axios returns empty data as empty string "", we can type cast it or let interceptor handle it
+    return await api.delete(`/posts/${id}/`);
 }
 
 export type Comment = {
@@ -149,70 +81,27 @@ export type Comment = {
 
 export type CreateCommentBody = { post: number; content: string; };
 
-export async function getCommentsApi(postId: number | string) {
-    const res = await fetch(`/api/posts/${postId}/comments/`, {
-        method: "GET",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data = (await safeJson(res)) as any;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "댓글 조회 실패");
-    return (data.results || data) as Comment[];
+export async function getCommentsApi(postId: number | string): Promise<Comment[]> {
+    const data = await api.get<any, { results?: Comment[] } | Comment[]>(`/posts/${postId}/comments/`);
+    return Array.isArray(data) ? data : (data.results || []);
 }
 
-export async function createCommentApi(body: CreateCommentBody) {
-    const res = await fetch(`/api/posts/${body.post}/comments/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-        body: JSON.stringify({ content: body.content }),
-    });
-    const data = (await safeJson(res)) as Comment & ApiResponse;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "댓글 추가 실패");
-    return data as Comment;
+export async function createCommentApi(body: CreateCommentBody): Promise<Comment> {
+    return await api.post(`/posts/${body.post}/comments/`, { content: body.content });
 }
 
-export async function updateCommentApi(id: number | string, content: string) {
-    const res = await fetch(`/api/interactions/comments/${id}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-        body: JSON.stringify({ content }),
-    });
-    const data = (await safeJson(res)) as Comment & ApiResponse;
-    if (!res.ok) throw new Error((data as ApiResponse).detail || "댓글 수정 실패");
-    return data as Comment;
+export async function updateCommentApi(id: number | string, content: string): Promise<Comment> {
+    return await api.patch(`/interactions/comments/${id}/`, { content });
 }
 
-export async function deleteCommentApi(id: number | string) {
-    const res = await fetch(`/api/interactions/comments/${id}/`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-    });
-    const data: ApiResponse = await safeJson(res);
-    if (!res.ok) throw new Error(data.detail || "댓글 삭제 실패");
-    return data;
+export async function deleteCommentApi(id: number | string): Promise<ApiResponse> {
+    return await api.delete(`/interactions/comments/${id}/`);
 }
 
-export async function likePostApi(postId: number | string) {
-    const res = await fetch(`/api/posts/${postId}/likes/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-    });
-    const data = (await safeJson(res)) as LikeResponse & ApiResponse;
-    if (!res.ok) throw new Error(data.detail || "좋아요 실패");
-    return data; 
+export async function likePostApi(postId: number | string): Promise<LikeResponse> {
+    return await api.post(`/posts/${postId}/likes/`);
 }
 
-export async function unlikePostApi(postId: number | string) {
-    const res = await fetch(`/api/posts/${postId}/likes/`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
-        credentials: "include",
-    });
-    const data = (await safeJson(res)) as LikeResponse & ApiResponse;
-    if (!res.ok) throw new Error(data.detail || "좋아요 취소 실패");
-    return data; 
+export async function unlikePostApi(postId: number | string): Promise<LikeResponse> {
+    return await api.delete(`/posts/${postId}/likes/`);
 }

@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements/ /app/requirements/
-RUN pip install --no-cache-dir -r requirements/dev.txt
+RUN pip install --no-cache-dir -r requirements/prod.txt
 
 COPY . /app/
+
+# Collect static files (assuming static root is configured)
+RUN python manage.py collectstatic --noinput

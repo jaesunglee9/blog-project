@@ -1,0 +1,6 @@
+-r base.txt
+black
+ruff
+debugpy
+django-stubs==5.2.0
+djangorestframework-stubs==3.16.0
