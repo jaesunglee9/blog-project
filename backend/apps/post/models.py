@@ -14,4 +14,4 @@ class Post(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Post by {self.user_id} at {self.created_at}"
+        return f"Post by {self.user_id} at {self.created_at}"  # type: ignore[attr-defined]

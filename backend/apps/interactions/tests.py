@@ -12,15 +12,15 @@ User = get_user_model()
 class InteractionTests(APITestCase):
     def setUp(self):
         # 1. Create two users
-        self.user_a = User.objects.create_user(username='user_a', password='password123')
-        self.user_b = User.objects.create_user(username='user_b', password='password123')
+        self.user_a = User.objects.create_user(username='user_a', password='password123')  # type: ignore[attr-defined]
+        self.user_b = User.objects.create_user(username='user_b', password='password123')  # type: ignore[attr-defined]
 
         # 2. Create a post (User A's post)
         self.post = Post.objects.create(user=self.user_a, title="Test Post", content="Content")
 
         # 3. URLs
-        self.comment_url = reverse('post-comments', args=[self.post.id])
-        self.like_url = reverse('post-likes', args=[self.post.id])
+        self.comment_url = reverse('post-comments', args=[self.post.id])  # type: ignore[attr-defined]
+        self.like_url = reverse('post-likes', args=[self.post.id])  # type: ignore[attr-defined]
 
     def test_toggle_like(self):
         """Test liking and unliking using new explicit endpoints"""
@@ -55,7 +55,7 @@ class InteractionTests(APITestCase):
         self.client.force_authenticate(user=self.user_a)
         
         # 3. Try to PATCH User B's comment
-        url = reverse('comment-detail', args=[comment.id])
+        url = reverse('comment-detail', args=[comment.id])  # type: ignore[attr-defined]
         response = self.client.patch(url, {'content': 'Hacked!'}, format='json')
 
         # 4. Expect Forbidden (403)

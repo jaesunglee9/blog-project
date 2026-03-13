@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='unsafe-secret-key')
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='unsafe-secret-key')  # type: ignore[call-overload]
 
 PROJECT_APPS = [
     "apps.user",
@@ -79,11 +79,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE' : 'django.db.backends.mysql',
-        'NAME': env('MYSQL_DATABASE', default='blog_db'),
-        'USER': env('MYSQL_USER', default='user'),
-        'PASSWORD': env('MYSQL_PASSWORD', default='password'),
-        'HOST': env('DB_HOST', default='db'),
-        'PORT': env('DB_PORT', default='3306'),
+        'NAME': env('MYSQL_DATABASE', default='blog_db'),  # type: ignore[call-overload]
+        'USER': env('MYSQL_USER', default='user'),  # type: ignore[call-overload]
+        'PASSWORD': env('MYSQL_PASSWORD', default='password'),  # type: ignore[call-overload]
+        'HOST': env('DB_HOST', default='db'),  # type: ignore[call-overload]
+        'PORT': env('DB_PORT', default='3306'),  # type: ignore[call-overload]
     }
 }
 

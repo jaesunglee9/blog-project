@@ -9,7 +9,7 @@ class PostSerializer(serializers.ModelSerializer):
     like_count = serializers.IntegerField(read_only=True)
     liked_by_me = serializers.BooleanField(read_only=True)
 
-    class Meta:
+    class Meta:  # type: ignore[override]
         model = Post
         fields = [
             "id",
@@ -30,7 +30,7 @@ class PostListSerializer(serializers.ModelSerializer):
     comment_count = serializers.IntegerField(read_only=True)
     like_count = serializers.IntegerField(read_only=True)
 
-    class Meta: 
+    class Meta:  # type: ignore[override]
         model = Post
         fields = [
             'id', 
